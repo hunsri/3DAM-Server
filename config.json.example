@@ -1,0 +1,13 @@
+{
+    "server_name": "MyAssetServer",
+    "motd": "Welcome to My Asset Server!",
+    "port": 8000,
+    "assets_directory": "/var/assets",
+    "max_connections": 20,
+    "categories": [
+        "characters",
+        "environments",
+        "objects"
+    ]
+
+}
