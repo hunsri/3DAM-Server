@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
+ASSETS_PATH = Path("server_assets/")
+CATEGORIES_PATH = ASSETS_PATH / "categories"
+
 class _Config:
+
 	_instance = None
 
     # Singleton pattern to load config only once
@@ -43,6 +47,8 @@ MAX_CONNECTIONS = _cfg.max_connections
 CATEGORIES = _cfg.categories
 
 __all__ = [
+	"ASSETS_PATH",
+	"CATEGORIES_PATH",
 	"SERVERNAME",
 	"SERVER_VERSION",
 	"MOTD",
@@ -51,6 +57,19 @@ __all__ = [
 	"MAX_CONNECTIONS",
 	"CATEGORIES",
 ]
+
+def _create_category_paths_if_missing() -> None:
+	# Create all categories found in CATEGORIES if they don't exist
+	if CATEGORIES is None:
+		return
+	
+	ASSETS_PATH.mkdir(parents=True, exist_ok=True)
+	CATEGORIES_PATH.mkdir(parents=True, exist_ok=True)
+	for category in CATEGORIES:
+		(CATEGORIES_PATH / category).mkdir(exist_ok=True)
+
+# creates found category directories on import
+_create_category_paths_if_missing()
 
 def get_server_info() -> dict:
 	"""Return basic server info as a JSON-serializable dict."""

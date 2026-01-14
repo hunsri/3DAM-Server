@@ -208,3 +208,6 @@ __marimo__/
 
 # Local config files
 config.json
+
+# 3D Asset file storage directory
+server_assets
