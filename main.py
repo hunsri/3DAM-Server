@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.websockets import WebSocket
 
 from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
@@ -21,6 +21,13 @@ async def get_info():
 async def websocket(websocket: WebSocket):
     await websocket.accept()
     await websocket.send_json({"msg": "Hello WebSocket"})
+
+@app.get("/assets/categories/{category_name}/{asset_name}/preview")
+async def get_asset_preview_image(category_name: str, asset_name: str):
+    try:
+        return manager.get_asset_preview_image(category_name, asset_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 @app.get("/assets/categories/{category_name}/assets_list")
 async def list_assets_in_category(category_name: str):
