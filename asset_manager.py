@@ -18,6 +18,31 @@ class AssetManager:
         return [f.name for f in category_path.iterdir() if f.is_dir()]
     
     @staticmethod
+    def get_asset_file_path(category_name: str, asset_name: str) -> os.PathLike:
+
+        archive_name = asset_name + ".zip"
+        asset_path = CATEGORIES_PATH / category_name / asset_name / archive_name
+        
+        # Resolve conservatively (allow non-existing targets but normalize path)
+        resolved_asset_path = asset_path.resolve(strict=False)
+        base_path = CATEGORIES_PATH.resolve(strict=True)
+
+        # Ensure the resolved path is inside the categories base
+        if not resolved_asset_path.is_relative_to(base_path):
+            raise ValueError(f"Invalid asset path for '{asset_name}' in category '{category_name}'.")
+
+        # Existence and type checks
+        if not resolved_asset_path.exists() or not resolved_asset_path.is_file():
+            raise ValueError(f"Asset '{asset_name}' in category '{category_name}' does not exist.")
+
+        # Reject symlinks
+        if resolved_asset_path.is_symlink():
+            raise ValueError("Asset archive is a symlink and is not allowed.")
+        
+        return resolved_asset_path
+
+
+    @staticmethod
     def get_asset_preview_image(category_name: str, asset_name: str) -> FileResponse:
         # Validate input names to avoid directory traversal via crafted names
         name_re = re.compile(r'^[A-Za-z0-9_.-]+$') #TODO this only allows ASCII names for now!
