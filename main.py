@@ -32,6 +32,21 @@ async def download_asset(category_name: str, asset_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.get("/assets/categories/{category_name}/{asset_name}/asset_info_file")
+async def get_asset_info_file(category_name: str, asset_name: str):
+    try:
+        return manager.get_asset_info_file(category_name, asset_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+@app.get("/assets/categories/{category_name}/{asset_name}/asset_info")
+async def get_asset_info(category_name: str, asset_name: str):
+    try:
+        info = manager.get_asset_info(category_name, asset_name)
+        return info
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @app.get("/assets/categories/{category_name}/{asset_name}/preview")
 async def get_asset_preview_image(category_name: str, asset_name: str):
     try:
