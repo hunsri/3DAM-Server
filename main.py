@@ -1,5 +1,8 @@
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, File, UploadFile, HTTPException, Response
 from fastapi.websockets import WebSocket
+
+import shutil
+import os
 
 from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
 from asset_manager import AssetManager
@@ -74,3 +77,42 @@ async def list_assets_in_category(category_name: str):
         return {"category": category_name, "assets": assets}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+# TODO crude WIP test implementation for uploading assets to temp directory
+# + upload to specific category after validation
+# + move logic to AssetManager
+@app.post("/assets/categories/{category_name}/upload")
+async def upload_asset(category_name: str, file: UploadFile = File(...)):
+    allowed_mime = {"application/zip", "application/x-zip-compressed"}
+    filename = str(file.filename or "")
+
+    if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):
+        raise HTTPException(status_code=400, detail="File type not supported. Please upload a ZIP file.")
+
+    # Save the uploaded file inside this project's server_assets/temp for now
+    project_root = os.path.dirname(__file__) # FIXME hacky way to get project root
+    server_assets_dir = os.path.join(project_root, "server_assets")
+    os.makedirs(server_assets_dir, exist_ok=True)
+    temp_dir = os.path.join(server_assets_dir, "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Sanitize asset_name to prevent directory traversal
+    safe_asset_name = os.path.basename(filename)
+    if not safe_asset_name:
+        raise HTTPException(status_code=400, detail="Invalid asset name")
+
+    file_path = os.path.join(temp_dir, f"{safe_asset_name}")
+
+    print(file_path)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+    finally:
+        try:
+            await file.close()
+        except Exception:
+            pass
+
+    return {"status": "ok", "filename": f"{safe_asset_name}"}
