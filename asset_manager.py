@@ -1,5 +1,5 @@
 from config import CATEGORIES_PATH
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 import re
 import os
 import json
@@ -103,6 +103,36 @@ class AssetManager:
                 return json.load(f)
         except json.JSONDecodeError:
             raise ValueError("Asset info JSON is malformed.")
+
+    @staticmethod
+    def get_asset_readme(category_name: str, asset_name: str) -> PlainTextResponse:
+        if not AssetManager.check_name_safety(category_name) \
+            or not AssetManager.check_name_safety(asset_name):
+            raise ValueError("Invalid category or asset name.")
+        resolved_readme_path = AssetManager.safe_resolved_path(CATEGORIES_PATH / category_name / asset_name, "readme.md")
+        if resolved_readme_path is None:
+            raise ValueError(f"README for asset '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+        try:
+            resolved_readme_path = Path(resolved_readme_path)
+            content = resolved_readme_path.read_text(encoding='utf-8')
+            return PlainTextResponse(content, media_type='text/markdown')
+        except OSError:
+            raise ValueError("Unable to read README file.")
+
+    @staticmethod
+    def get_asset_license(category_name: str, asset_name: str) -> PlainTextResponse:
+        if not AssetManager.check_name_safety(category_name) \
+            or not AssetManager.check_name_safety(asset_name):
+            raise ValueError("Invalid category or asset name.")
+        resolved_license_path = AssetManager.safe_resolved_path(CATEGORIES_PATH / category_name / asset_name, "license.md")
+        if resolved_license_path is None:
+            raise ValueError(f"License for asset '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+        try:
+            resolved_license_path = Path(resolved_license_path)
+            content = resolved_license_path.read_text(encoding='utf-8')
+            return PlainTextResponse(content, media_type='text/plain')
+        except OSError:
+            raise ValueError("Unable to read license file.")
 
     @staticmethod
     def get_asset_preview_image(category_name: str, asset_name: str) -> FileResponse:

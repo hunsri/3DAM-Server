@@ -63,6 +63,20 @@ async def get_asset_info(category_name: str, asset_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.get("/assets/categories/{category_name}/{asset_name}/readme")
+async def get_asset_readme(category_name: str, asset_name: str):
+    try:
+        return manager.get_asset_readme(category_name, asset_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/assets/categories/{category_name}/{asset_name}/license")
+async def get_asset_license(category_name: str, asset_name: str):
+    try:
+        return manager.get_asset_license(category_name, asset_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @app.get("/assets/categories/{category_name}/{asset_name}/preview")
 async def get_asset_preview_image(category_name: str, asset_name: str):
     try:
