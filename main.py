@@ -6,9 +6,11 @@ import os
 
 from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
 from asset_manager import AssetManager
+from package_manager import PackageManager
 
-# module-level manager instance
+# module-level manager instances
 manager = AssetManager()
+package_manager = PackageManager()
 
 app = FastAPI()
 
@@ -25,70 +27,67 @@ async def websocket(websocket: WebSocket):
     await websocket.accept()
     await websocket.send_json({"msg": "Hello WebSocket"})
 
-@app.get("/assets/categories/{category_name}/{asset_name}/download")
-async def download_asset_http(category_name: str, asset_name: str):
+@app.get("/assets/categories/{category_name}/{package_name}/package_info")
+async def get_package_info(category_name: str, package_name: str):
     try:
-        asset_path = manager.get_asset_file_path(category_name, asset_name)
-        with open(asset_path, "rb") as file:
-            content = file.read()
-        return Response(content=content, media_type="application/octet-stream", headers={"Content-Disposition": f"attachment; filename={asset_name}.zip"})
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-#TODO stream in chunks for large files
-@app.websocket("/ws/assets/categories/{category_name}/{asset_name}/download")
-async def download_asset(websocket: WebSocket, category_name: str, asset_name: str):
-    await websocket.accept()
-    try:
-        asset_path = manager.get_asset_file_path(category_name, asset_name)
-        with open(asset_path, "rb") as file:
-            content = file.read()
-
-        await websocket.send_bytes(content)
-    except Exception as e:
-        await websocket.send_text(f"Error: {str(e)}")
-
-@app.get("/assets/categories/{category_name}/{asset_name}/asset_info_file")
-async def get_asset_info_file(category_name: str, asset_name: str):
-    try:
-        return manager.get_asset_info_file(category_name, asset_name)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    
-@app.get("/assets/categories/{category_name}/{asset_name}/asset_info")
-async def get_asset_info(category_name: str, asset_name: str):
-    try:
-        info = manager.get_asset_info(category_name, asset_name)
+        info = package_manager.get_package_info(category_name, package_name)
         return info
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.get("/assets/categories/{category_name}/{asset_name}/readme")
-async def get_asset_readme(category_name: str, asset_name: str):
+
+@app.get("/assets/categories/{category_name}/{package_name}/download")
+async def download_asset_http(category_name: str, package_name: str):
     try:
-        return manager.get_asset_readme(category_name, asset_name)
+        asset_path = manager.get_asset_archive_location(category_name, package_name)
+        with open(asset_path, "rb") as file:
+            content = file.read()
+        return Response(content=content, media_type="application/octet-stream", headers={"Content-Disposition": f"attachment; filename={package_name}.zip"})
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.get("/assets/categories/{category_name}/{asset_name}/license")
-async def get_asset_license(category_name: str, asset_name: str):
+
+@app.get("/assets/categories/{category_name}/{package_name}/asset_info_file")
+async def get_asset_info_file(category_name: str, package_name: str):
     try:
-        return manager.get_asset_license(category_name, asset_name)
+        return manager.get_asset_info_file(category_name, package_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    
+@app.get("/assets/categories/{category_name}/{package_name}/asset_info")
+async def get_asset_info(category_name: str, package_name: str):
+    try:
+        info = manager.get_asset_info(category_name, package_name)
+        return info
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.get("/assets/categories/{category_name}/{asset_name}/preview")
-async def get_asset_preview_image(category_name: str, asset_name: str):
+@app.get("/assets/categories/{category_name}/{package_name}/readme")
+async def get_asset_readme(category_name: str, package_name: str):
     try:
-        return manager.get_asset_preview_image(category_name, asset_name)
+        return manager.get_asset_readme(category_name, package_name)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.get("/assets/categories/{category_name}/assets_list")
-async def list_assets_in_category(category_name: str):
+@app.get("/assets/categories/{category_name}/{package_name}/license")
+async def get_asset_license(category_name: str, package_name: str):
     try:
-        assets = manager.list_assets_in_category(category_name)
-        return {"category": category_name, "assets": assets}
+        return manager.get_asset_license(category_name, package_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/assets/categories/{category_name}/{package_name}/preview")
+async def get_asset_preview_image(category_name: str, package_name: str):
+    try:
+        return manager.get_asset_preview_image(category_name, package_name)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/assets/categories/{category_name}/package_list")
+async def list_packages_in_category(category_name: str):
+    try:
+        packages = package_manager.list_packages_in_category(category_name)
+        return {"category": category_name, "packages": packages}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -97,7 +96,7 @@ async def list_assets_in_category(category_name: str):
 # + move logic to AssetManager
 @app.post("/assets/categories/{category_name}/upload")
 async def upload_asset(category_name: str, file: UploadFile = File(...)):
-    allowed_mime = {"application/zip", "application/x-zip-compressed"}
+    allowed_mime = {"application/zip"}
     filename = str(file.filename or "")
 
     if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):

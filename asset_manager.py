@@ -1,103 +1,83 @@
 from config import CATEGORIES_PATH
 from fastapi.responses import FileResponse, PlainTextResponse
-import re
 import os
 import json
 from pathlib import Path
 from typing import Optional
+from package_manager import PackageManager
+from safety_utils import SafetyUtils
 
 # Maximum preview image size (bytes)
 MAX_PREVIEW_SIZE = 5 * 1024 * 1024  # 5 MB
+ASSET_INFO_FILENAME = "asset_info.json"
+ARCHIVE_NAME = "assets.zip"
+README_FILENAME = "readme.md"
+LICENSE_FILENAME = "license.md"
+PREVIEW_IMAGE_FILENAME = "preview.png"
 
 class AssetManager:
     
     @staticmethod
-    def list_assets_in_category(category_name: str) -> list[str]:
-        """List all asset filenames in the given category."""
-        category_path = CATEGORIES_PATH / category_name
-        if not category_path.exists() or not category_path.is_dir():
-            raise ValueError(f"Category '{category_name}' does not exist.")
+    def get_asset_index_path(category_name: str, package_name: str, version: str = "") -> str:
         
-        return [f.name for f in category_path.iterdir() if f.is_dir()]
-    
-    @staticmethod
-    def get_asset_file_path(category_name: str, asset_name: str) -> os.PathLike:
+        version_directory_name = ""
 
-        archive_name = asset_name + ".zip"
-        asset_path = CATEGORIES_PATH / category_name / asset_name / archive_name
-        
+        if not SafetyUtils.check_many_names_safety(category_name, package_name):
+            raise ValueError("Invalid category or package name")
+
+        if version:
+            if not SafetyUtils.check_name_safety(version):
+                raise ValueError("Invalid version name.")
+            version_directory_name = version
+        else:
+            version_directory_name = PackageManager.latest_version(category_name, package_name)
+
+        asset_index_path = CATEGORIES_PATH / category_name / package_name / "versions" / version_directory_name
+
         # Resolve conservatively (allow non-existing targets but normalize path)
-        resolved_asset_path = asset_path.resolve(strict=False)
+        resolved_asset_index_path = asset_index_path.resolve(strict=False)
         base_path = CATEGORIES_PATH.resolve(strict=True)
 
         # Ensure the resolved path is inside the categories base
-        if not resolved_asset_path.is_relative_to(base_path):
-            raise ValueError(f"Invalid asset path for '{asset_name}' in category '{category_name}'.")
+        if not resolved_asset_index_path.is_relative_to(base_path):
+            raise ValueError(f"Invalid package path for version '{version_directory_name}' of '{package_name}' in category '{category_name}'.")
 
         # Existence and type checks
-        if not resolved_asset_path.exists() or not resolved_asset_path.is_file():
-            raise ValueError(f"Asset '{asset_name}' in category '{category_name}' does not exist.")
-
+        if not resolved_asset_index_path.exists() or not resolved_asset_index_path.is_dir():
+            raise ValueError(f"Version '{version_directory_name}' of Package '{package_name}' in category '{category_name}' does not exist.")
+ 
         # Reject symlinks
-        if resolved_asset_path.is_symlink():
-            raise ValueError("Asset archive is a symlink and is not allowed.")
-        
-        return resolved_asset_path
+        if resolved_asset_index_path.is_symlink():
+            raise ValueError(f"Version '{version_directory_name}' of Package '{package_name}' in category '{category_name}' is a symlink and is not allowed.")
+
+        return str(resolved_asset_index_path)
 
     @staticmethod
-    def _get_asset_info_path(category_name: str, asset_name: str) -> Optional[os.PathLike]:
-        # Validate input names to avoid directory traversal via crafted names
-        if not AssetManager.check_name_safety(category_name) \
-            or not AssetManager.check_name_safety(asset_name):
-            raise ValueError("Invalid category or asset name.")
+    def get_asset_archive_location(category_name: str, package_name: str, version: str = "") -> os.PathLike:
 
-        json_path = CATEGORIES_PATH / category_name / asset_name / "asset_info.json"
-
-        # Use helper to safely resolve and validate the target file; returns None on failure
-        return AssetManager.safe_resolved_path(json_path.parent, "asset_info.json")
+        resolved_asset_index_path = AssetManager.get_asset_index_path(category_name, package_name, version)
+        return Path(resolved_asset_index_path) / ARCHIVE_NAME
 
     @staticmethod
-    def check_name_safety(name: str) -> bool:
-        # Allow only alphanumeric characters, underscores, hyphens, and periods
-        name_re = re.compile(r'^[A-Za-z0-9_.-]+$')
-        return bool(name_re.match(name))
+    def _get_asset_info_path(category_name: str, package_name: str, version: str = "") -> Optional[os.PathLike]:
+
+        resolved_asset_index_path = AssetManager.get_asset_index_path(category_name, package_name, version)
+        return Path(resolved_asset_index_path) / ASSET_INFO_FILENAME
 
     @staticmethod
-    def safe_resolved_path(path_to_file: Path, file_name: str) -> Optional[os.PathLike]:
-        # Normalize to Path to access file methods safely
-        path = path_to_file / file_name
-
-        # Resolve conservatively: allow resolving even if the target doesn't exist
-        resolved_file_path = path.resolve(strict=False)
-        base_path = CATEGORIES_PATH.resolve(strict=True)
-
-        # Ensure the resolved path is inside the categories base
-        if not resolved_file_path.is_relative_to(base_path):
-            return None
-        
-        # Existence and type checks
-        if not resolved_file_path.exists() or not resolved_file_path.is_file():
-            return None
-
-        # Reject symlinks
-        if resolved_file_path.is_symlink():
-            return None
-        
-        return resolved_file_path
-
-    @staticmethod
-    def get_asset_info_file(category_name: str, asset_name: str):
-        resolved_json_path = AssetManager._get_asset_info_path(category_name, asset_name)
+    def get_asset_info_file(category_name: str, package_name: str, version: str = ""):
+        resolved_json_path = AssetManager._get_asset_info_path(category_name, package_name, version)
         if resolved_json_path is None:
-            raise ValueError(f"Asset info for '{asset_name}' in category '{category_name}' does not exist or is unsafe to access")
+            raise ValueError(f"Asset info for '{package_name}' in category '{category_name}' does not exist or is unsafe to access")
         # Return the file response with an explicit media type
-        return FileResponse(resolved_json_path, media_type='application/json', filename='asset_info.json')
+        return FileResponse(resolved_json_path, media_type='application/json', filename=ASSET_INFO_FILENAME)
 
     @staticmethod
-    def get_asset_info(category_name: str, asset_name: str) -> str:
-        resolved_json_path = AssetManager._get_asset_info_path(category_name, asset_name)
+    def get_asset_info(category_name: str, package_name: str, version: str = "") -> str:
+        resolved_json_path = AssetManager._get_asset_info_path(category_name, package_name, version)
+        
         if resolved_json_path is None:
-            raise ValueError(f"Asset info for '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+            raise ValueError(f"Asset info for '{package_name}' in category '{category_name}' does not exist or is unsafe to access.")
         try:
             with open(resolved_json_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -105,13 +85,12 @@ class AssetManager:
             raise ValueError("Asset info JSON is malformed.")
 
     @staticmethod
-    def get_asset_readme(category_name: str, asset_name: str) -> PlainTextResponse:
-        if not AssetManager.check_name_safety(category_name) \
-            or not AssetManager.check_name_safety(asset_name):
-            raise ValueError("Invalid category or asset name.")
-        resolved_readme_path = AssetManager.safe_resolved_path(CATEGORIES_PATH / category_name / asset_name, "readme.md")
+    def get_asset_readme(category_name: str, package_name: str, version: str = "") -> PlainTextResponse:
+        
+        resolved_readme_path = AssetManager.get_asset_index_path(category_name, package_name, version) + "/" + README_FILENAME
+        
         if resolved_readme_path is None:
-            raise ValueError(f"README for asset '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+            raise ValueError(f"README for asset '{package_name}' in category '{category_name}' does not exist or is unsafe to access.")
         try:
             resolved_readme_path = Path(resolved_readme_path)
             content = resolved_readme_path.read_text(encoding='utf-8')
@@ -120,13 +99,11 @@ class AssetManager:
             raise ValueError("Unable to read README file.")
 
     @staticmethod
-    def get_asset_license(category_name: str, asset_name: str) -> PlainTextResponse:
-        if not AssetManager.check_name_safety(category_name) \
-            or not AssetManager.check_name_safety(asset_name):
-            raise ValueError("Invalid category or asset name.")
-        resolved_license_path = AssetManager.safe_resolved_path(CATEGORIES_PATH / category_name / asset_name, "license.md")
+    def get_asset_license(category_name: str, package_name: str, version: str = "") -> PlainTextResponse:
+       
+        resolved_license_path = AssetManager.get_asset_index_path(category_name, package_name, version) + "/" + LICENSE_FILENAME
         if resolved_license_path is None:
-            raise ValueError(f"License for asset '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+            raise ValueError(f"License for asset '{package_name}' in category '{category_name}' does not exist or is unsafe to access.")
         try:
             resolved_license_path = Path(resolved_license_path)
             content = resolved_license_path.read_text(encoding='utf-8')
@@ -135,17 +112,13 @@ class AssetManager:
             raise ValueError("Unable to read license file.")
 
     @staticmethod
-    def get_asset_preview_image(category_name: str, asset_name: str) -> FileResponse:
-        # Validate input names to avoid directory traversal via crafted names
-        if not AssetManager.check_name_safety(category_name) \
-            or not AssetManager.check_name_safety(asset_name):
-            raise ValueError("Invalid category or asset name.")
-        
-        resolved_image_path = AssetManager.safe_resolved_path(CATEGORIES_PATH / category_name / asset_name, "preview.png")  
+    def get_asset_preview_image(category_name: str, package_name: str, version: str = "") -> FileResponse:
 
+        resolved_image_path = AssetManager.get_asset_index_path(category_name, package_name, version) + "/" + PREVIEW_IMAGE_FILENAME
+        
         # Prevent serving very large files
         if resolved_image_path is None:
-            raise ValueError(f"Preview image for asset '{asset_name}' in category '{category_name}' does not exist or is unsafe to access.")
+            raise ValueError(f"Preview image for asset '{package_name}' in category '{category_name}' does not exist or is unsafe to access.")
         else:
             resolved_image_path = Path(resolved_image_path)
 
