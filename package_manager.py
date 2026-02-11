@@ -1,9 +1,11 @@
 import json
+from category_manager import CategoryManager
 from config import CATEGORIES_PATH
 from safety_utils import SafetyUtils
 from fastapi.responses import FileResponse, PlainTextResponse
 
 ASSET_PACKAGE_INFO_FILENAME = "asset_package_info.json"
+ASSET_ZIP_NAME = "assets.zip"
 
 class PackageManager:
 
@@ -50,3 +52,63 @@ class PackageManager:
                     return versions[-1]
         except (FileNotFoundError, json.JSONDecodeError):
             return ""
+    
+    @staticmethod
+    def does_package_exist(category_name: str, package_name: str) -> bool:
+        if not SafetyUtils.check_many_names_safety(category_name, package_name):
+            raise ValueError("Invalid category or package name.")
+
+        # Check based on the existence of the package directory
+        package_path = CATEGORIES_PATH / category_name / package_name
+        if package_path.exists() and package_path.is_dir():
+            return True
+        else:
+            return False
+    
+    @staticmethod
+    def does_package_version_exist(category_name: str, package_name: str, version: str) -> bool:
+        if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
+            raise ValueError("Invalid category, package name, or version.")
+
+        # Check based on the existence of the version directory
+        version_path = CATEGORIES_PATH / category_name / package_name / "versions" / version
+        if version_path.exists() and version_path.is_dir():
+            return True
+        else:
+            return False
+    
+    @staticmethod
+    def create_new_package_from_asset_info(category_name: str, asset_info: dict) -> str:
+        if not SafetyUtils.check_name_safety(category_name):
+            raise ValueError("Invalid category name.")
+        
+        package_name = asset_info.get("package_name")
+        if package_name is None:
+            raise ValueError("Package name is missing in asset info.")
+        if not SafetyUtils.check_name_safety(package_name):
+            raise ValueError("Invalid package name in asset info.")
+        
+        version = asset_info.get("version")
+        if version is None:
+            version = "initial_version"
+        if not SafetyUtils.check_name_safety(version):
+            raise ValueError("Invalid version in asset info.")
+        
+        # Create the package structure
+        PackageManager.create_package_structure_if_category_exists(category_name, package_name, version)
+        path_to_package = CATEGORIES_PATH / category_name / package_name / "versions" / version
+        return str(path_to_package)
+
+    @staticmethod
+    def create_package_structure_if_category_exists(category_name: str, package_name: str, version: str) -> None:
+        if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
+            raise ValueError("Invalid category, package name, or version.")
+        
+        if not CategoryManager.does_category_exist(category_name):
+            raise ValueError(f"Category '{category_name}' does not exist.")
+        
+        # Create the package directory structure
+        package_path = CATEGORIES_PATH / category_name / package_name
+        version_path = package_path / "versions" / version
+        version_path.mkdir(parents=True, exist_ok=True)
+

@@ -42,7 +42,7 @@ SERVERNAME = _cfg.server_name
 SERVER_VERSION = "indev"
 MOTD = _cfg.motd
 PORT = _cfg.port
-ASSETS_DIRECTORY = _cfg.assets_directory
+ASSETS_DIRECTORY = _cfg.assets_directory or "server_assets"
 MAX_CONNECTIONS = _cfg.max_connections
 CATEGORIES = _cfg.categories
 

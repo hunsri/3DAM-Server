@@ -1,16 +1,23 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Response
+from typing import Annotated, Any, Dict, Optional
+from fastapi import Depends, FastAPI, File, Form, Request, UploadFile, HTTPException, Response
 from fastapi.websockets import WebSocket
 
 import shutil
 import os
 
+from category_manager import CategoryManager
 from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
 from asset_manager import AssetManager
-from package_manager import PackageManager
+from package_manager import ASSET_ZIP_NAME, PackageManager
+
+# from pydantic import BaseModel
+from asset_info import Asset_Info
+from safety_utils import SafetyUtils
 
 # module-level manager instances
 manager = AssetManager()
 package_manager = PackageManager()
+category_manager = CategoryManager()
 
 app = FastAPI()
 
@@ -91,30 +98,53 @@ async def list_packages_in_category(category_name: str):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# TODO crude WIP test implementation for uploading assets to temp directory
-# + upload to specific category after validation
-# + move logic to AssetManager
+
+@app.get("/assets/categories/{category_name}/{package_name}/check_existence")
+async def check_package_existence(category_name: str, package_name: str, request: Request, version: Optional[str] = None):
+
+    version_str = request.query_params.get("version")
+    try:
+        package_exists = package_manager.does_package_exist(category_name, package_name)
+        if version_str is None:
+            return {"package_exists": package_exists}
+        
+        version_exists = package_manager.does_package_version_exist(category_name, package_name, version_str)   
+        return {"package_exists": package_exists, "version_exists": version_exists}
+    
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# crude WIP test implementation for uploading assets to temp directory
+# TODO implement creation of package info file and saving the asset_info in the asset index
 @app.post("/assets/categories/{category_name}/upload")
-async def upload_asset(category_name: str, file: UploadFile = File(...)):
+async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Depends(Asset_Info.parse_asset_info)], file: UploadFile = File(...)):
     allowed_mime = {"application/zip"}
     filename = str(file.filename or "")
 
     if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):
         raise HTTPException(status_code=400, detail="File type not supported. Please upload a ZIP file.")
 
-    # Save the uploaded file inside this project's server_assets/temp for now
-    project_root = os.path.dirname(__file__) # FIXME hacky way to get project root
-    server_assets_dir = os.path.join(project_root, "server_assets")
-    os.makedirs(server_assets_dir, exist_ok=True)
-    temp_dir = os.path.join(server_assets_dir, "temp")
-    os.makedirs(temp_dir, exist_ok=True)
+    if SafetyUtils.check_name_safety(category_name) is False:
+        raise HTTPException(status_code=400, detail="Invalid category name.")
 
-    # Sanitize asset_name to prevent directory traversal
-    safe_asset_name = os.path.basename(filename)
-    if not safe_asset_name:
-        raise HTTPException(status_code=400, detail="Invalid asset name")
+    # We can assume asset_info has been checked for malicious content during parsing
+    # Hence values can theoretically used safely as is, though safety is advised in case parsing logic changes
 
-    file_path = os.path.join(temp_dir, f"{safe_asset_name}")
+    # Check if category exists
+    if not category_manager.does_category_exist(category_name):
+        raise HTTPException(status_code=404, detail=f"Category '{category_name}' does not exist.")
+
+    # Check if package and version don't already exist in the category
+    if package_manager.does_package_version_exist(category_name, asset_info.package_name, asset_info.version):
+        raise HTTPException(status_code=400, detail=f"Package '{asset_info.package_name}' with version '{asset_info.version}' already exists in category '{category_name}'.")
+    
+    # Create the new package structure
+    try:
+        new_package_path = package_manager.create_new_package_from_asset_info(category_name, asset_info.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    file_path = os.path.join(new_package_path, ASSET_ZIP_NAME)
 
     print(file_path)
     try:
@@ -128,4 +158,4 @@ async def upload_asset(category_name: str, file: UploadFile = File(...)):
         except Exception:
             pass
 
-    return {"status": "ok", "filename": f"{safe_asset_name}"}
+    return {"status": "ok", "category": category_name, "package_name": asset_info.package_name, "version": asset_info.version}
