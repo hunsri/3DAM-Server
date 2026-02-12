@@ -4,10 +4,13 @@ from pydantic import BaseModel
 from fastapi import HTTPException
 
 from safety_utils import SafetyUtils
+from package_manager import PackageManager
+
+DEFAULT_VERSION = "0.0.0"
 
 class Asset_Info(BaseModel):
     package_name: str
-    version: str
+    version: str = DEFAULT_VERSION
     asset_file_name: str
     authors: list[str] | None = []
     keywords: list[str] | None = []

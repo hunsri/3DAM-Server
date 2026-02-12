@@ -11,7 +11,7 @@ from asset_manager import AssetManager
 from package_manager import ASSET_ZIP_NAME, PackageManager
 
 # from pydantic import BaseModel
-from asset_info import Asset_Info
+from asset_info import DEFAULT_VERSION, Asset_Info
 from safety_utils import SafetyUtils
 
 # module-level manager instances
@@ -160,6 +160,11 @@ async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Dep
 
     if SafetyUtils.check_name_safety(category_name) is False:
         raise HTTPException(status_code=400, detail="Invalid category name.")
+
+    if asset_info.version == DEFAULT_VERSION:
+        # If the version is the default, we only allow the upload if the package does not already exist
+        if package_manager.does_package_exist(category_name, asset_info.package_name):
+            raise HTTPException(status_code=400, detail="Version field is missing in asset_info JSON. A version is required when the package already exists.")
 
     # We can assume asset_info has been checked for malicious content during parsing
     # Hence values can theoretically used safely as is, though safety is advised in case parsing logic changes
