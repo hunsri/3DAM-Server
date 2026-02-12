@@ -112,6 +112,18 @@ class AssetManager:
             raise ValueError("Unable to read license file.")
 
     @staticmethod
+    def create_asset_preview_image(category_name: str, package_name: str, version: str, image_content: bytes):
+        if len(image_content) > MAX_PREVIEW_SIZE:
+            raise ValueError("Preview image content is too large.")
+        
+        resolved_image_path = AssetManager.get_asset_index_path(category_name, package_name, version) + "/" + PREVIEW_IMAGE_FILENAME
+        try:
+            with open(resolved_image_path, 'wb') as file:
+                file.write(image_content)
+        except OSError:
+            raise ValueError("Unable to save preview image.")
+        
+    @staticmethod
     def get_asset_preview_image(category_name: str, package_name: str, version: str = "") -> FileResponse:
 
         resolved_image_path = AssetManager.get_asset_index_path(category_name, package_name, version) + "/" + PREVIEW_IMAGE_FILENAME

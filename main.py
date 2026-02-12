@@ -114,6 +114,42 @@ async def check_package_existence(category_name: str, package_name: str, request
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@app.post("/assets/categories/{category_name}/{package_name}/preview")
+async def upload_preview_image(category_name: str, package_name: str, version: str, file: UploadFile = File(...)):
+    allowed_mime = {"image/png"}
+    filename = str(file.filename or "")
+
+    if file.content_type not in allowed_mime and not any(filename.lower().endswith(ext) for ext in ['.png']):
+        raise HTTPException(status_code=400, detail="File type not supported. Please upload an image file (PNG).")
+
+    if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
+        raise HTTPException(status_code=400, detail="Invalid category, package name, or version.")
+
+    # Check if category and package exist
+    if not package_manager.does_package_version_exist(category_name, package_name, version):
+        raise HTTPException(status_code=404, detail=f"Package '{package_name}' with version '{version}' does not exist in category '{category_name}'.")
+
+    # Check if a valid exisiting preview image can be found
+    try:
+        manager.get_asset_preview_image(category_name, package_name, version)
+        raise HTTPException(status_code=400, detail=f"A preview image already exists for package '{package_name}' with version '{version}' in category '{category_name}'.")
+    except ValueError:
+        pass  # No existing preview image found, which is what we want for proceeding
+
+    preview_path = manager.get_asset_index_path(category_name, package_name, version)
+
+    try:
+        manager.create_asset_preview_image(category_name, package_name, version, await file.read())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+    finally:
+        try:
+            await file.close()
+        except Exception:
+            pass
+
+    return {"status": "ok", "category": category_name, "package_name": package_name}
+
 @app.post("/assets/categories/{category_name}/upload")
 async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Depends(Asset_Info.parse_asset_info)], file: UploadFile = File(...)):
     allowed_mime = {"application/zip"}

@@ -9,9 +9,9 @@ class Asset_Info(BaseModel):
     package_name: str
     version: str
     asset_file_name: str
-    authors: list[str] | None = None
-    keywords: list[str] | None = None
-    origin_history: list[str] | None = None
+    authors: list[str] | None = []
+    keywords: list[str] | None = []
+    origin_history: list[str] | None = []
 
     @staticmethod
     def parse_asset_info(asset_info: Annotated[str, Form(...)]) -> "Asset_Info":
