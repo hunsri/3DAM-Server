@@ -131,3 +131,13 @@ class AssetManager:
 
         # Return the file response with an explicit media type
         return FileResponse(resolved_image_path, media_type="image/png", filename="preview.png")
+    
+    @staticmethod
+    def save_asset_info(category_name: str, package_name: str, version: str, asset_info: dict):
+        resolved_asset_index_path = AssetManager.get_asset_index_path(category_name, package_name, version)
+        asset_info_path = Path(resolved_asset_index_path) / ASSET_INFO_FILENAME
+        try:
+            with open(asset_info_path, 'w', encoding='utf-8') as f:
+                json.dump(asset_info, f, indent=4)
+        except OSError:
+            raise ValueError("Unable to save asset info.")

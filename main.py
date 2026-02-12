@@ -114,8 +114,6 @@ async def check_package_existence(category_name: str, package_name: str, request
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# crude WIP test implementation for uploading assets to temp directory
-# TODO implement creation of package info file and saving the asset_info in the asset index
 @app.post("/assets/categories/{category_name}/upload")
 async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Depends(Asset_Info.parse_asset_info)], file: UploadFile = File(...)):
     allowed_mime = {"application/zip"}
@@ -146,7 +144,6 @@ async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Dep
 
     file_path = os.path.join(new_package_path, ASSET_ZIP_NAME)
 
-    print(file_path)
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -157,5 +154,10 @@ async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Dep
             await file.close()
         except Exception:
             pass
+    
+    PackageManager.create_package_info_file(category_name, asset_info.package_name)
+    PackageManager.add_version_to_package_info(category_name, asset_info.package_name, asset_info.version)
+
+    AssetManager.save_asset_info(category_name, asset_info.package_name, asset_info.version, asset_info.model_dump())
 
     return {"status": "ok", "category": category_name, "package_name": asset_info.package_name, "version": asset_info.version}

@@ -111,4 +111,42 @@ class PackageManager:
         package_path = CATEGORIES_PATH / category_name / package_name
         version_path = package_path / "versions" / version
         version_path.mkdir(parents=True, exist_ok=True)
+    
+    @staticmethod
+    def create_package_info_file(category_name: str, package_name: str) -> None:
+        if not SafetyUtils.check_many_names_safety(category_name, package_name):
+            raise ValueError("Invalid category or package name.")
+        
+        package_info_path = CATEGORIES_PATH / category_name / package_name / ASSET_PACKAGE_INFO_FILENAME
+        if not package_info_path.exists():
+            # Create a basic package info structure
+            package_info = {
+                "package_name": package_name,
+                "versions": []
+            }
+            with open(package_info_path, 'w', encoding='utf-8') as f:
+                json.dump(package_info, f, indent=4)
 
+    @staticmethod
+    def add_version_to_package_info(category_name: str, package_name: str, version: str) -> None:
+        if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
+            raise ValueError("Invalid category, package name, or version.")
+        
+        package_info_path = CATEGORIES_PATH / category_name / package_name / ASSET_PACKAGE_INFO_FILENAME
+        if not package_info_path.exists():
+            raise ValueError(f"Package info for '{package_name}' in category '{category_name}' does not exist.")
+        
+        try:
+            with open(package_info_path, 'r+', encoding='utf-8') as file:
+                package_info = json.load(file)
+                versions = package_info.get("versions")
+                if versions is None:
+                    versions = []
+                    package_info["versions"] = versions
+                if version not in versions:
+                    versions.append(version)
+                    file.seek(0)
+                    json.dump(package_info, file, indent=4)
+                    file.truncate() # In case new content is shorter than old (for potential future use cases)
+        except json.JSONDecodeError:
+            raise ValueError("Package info JSON is malformed.")
