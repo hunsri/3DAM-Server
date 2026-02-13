@@ -1,9 +1,10 @@
-from typing import Annotated, Any, Dict, Optional
+from typing import Annotated, Optional
 from fastapi import Depends, FastAPI, File, Form, Request, UploadFile, HTTPException, Response
 from fastapi.websockets import WebSocket
 
 import shutil
 import os
+from pathlib import Path
 
 from category_manager import CategoryManager
 from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
@@ -115,7 +116,7 @@ async def check_package_existence(category_name: str, package_name: str, request
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.post("/assets/categories/{category_name}/{package_name}/preview")
-async def upload_preview_image(category_name: str, package_name: str, version: str, file: UploadFile = File(...)):
+async def upload_preview_image(category_name: str, package_name: str, version: str, file: UploadFile = File(..., description="Image file (PNG) to be used as the preview image for this asset version")):
     allowed_mime = {"image/png"}
     filename = str(file.filename or "")
 
@@ -150,32 +151,90 @@ async def upload_preview_image(category_name: str, package_name: str, version: s
 
     return {"status": "ok", "category": category_name, "package_name": package_name}
 
-@app.post("/assets/categories/{category_name}/upload")
-async def upload_asset(category_name: str, asset_info: Annotated[Asset_Info, Depends(Asset_Info.parse_asset_info)], file: UploadFile = File(...)):
+@app.post("/assets/categories/{category_name}/upload_asset_archive")
+async def upload_asset_archive(category_name: str, package_name: str, version: str, file: UploadFile = File(..., description="ZIP file containing the asset archive")):
+    """
+    Endpoint for uploading the asset archive (ZIP file) after uploading the asset info. Will fail if asset info has not been uploaded or the archive already exsists.
+    """
+    
     allowed_mime = {"application/zip"}
     filename = str(file.filename or "")
 
     if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):
         raise HTTPException(status_code=400, detail="File type not supported. Please upload a ZIP file.")
 
+    if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
+        raise HTTPException(status_code=400, detail="Invalid category, package name, or version.")
+
+    # Check if category and package exist
+    if not package_manager.does_package_version_exist(category_name, package_name, version):
+        raise HTTPException(status_code=404, detail=f"Package '{package_name}' with version '{version}' does not exist in category '{category_name}'.")
+
+    file_path = os.path.join(manager.get_asset_index_path(category_name, package_name, version), ASSET_ZIP_NAME)
+
+    # Only save the file if no zip_archive exists yet for this package version
+    try:
+        path_to_zip = Path(manager.get_asset_archive_location(category_name, package_name, version))
+        # check if the zip file exists
+        if path_to_zip.is_file():
+            raise HTTPException(status_code=400, detail=f"An asset archive already exists for package '{package_name}' with version '{version}' in category '{category_name}'.")
+    except ValueError:
+        pass  # No existing asset archive found, which is what we want for proceeding
+
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+    finally:
+        try:
+            await file.close()
+        except Exception:
+            pass
+
+    return {"status": "ok", "category": category_name, "package_name": package_name, "version": version}
+
+@app.post("/assets/categories/{category_name}/upload_asset_info")
+async def upload_asset_info(category_name: str, asset_info: Asset_Info = Depends(Asset_Info.parse_asset_info)):
+    """
+    **Endpoint for uploading asset info JSON without the asset archive.**
+    This is provided as an easier alternative to the endpoint at **/upload**
+    Note that after calling it is expected that the client will upload the asset archive (ZIP file) using the /upload_asset_archive endpoint, otherwise the package version will be incomplete!
+    """
     if SafetyUtils.check_name_safety(category_name) is False:
         raise HTTPException(status_code=400, detail="Invalid category name.")
 
-    if asset_info.version == DEFAULT_VERSION:
-        # If the version is the default, we only allow the upload if the package does not already exist
-        if package_manager.does_package_exist(category_name, asset_info.package_name):
-            raise HTTPException(status_code=400, detail="Version field is missing in asset_info JSON. A version is required when the package already exists.")
-
-    # We can assume asset_info has been checked for malicious content during parsing
-    # Hence values can theoretically used safely as is, though safety is advised in case parsing logic changes
-
-    # Check if category exists
     if not category_manager.does_category_exist(category_name):
         raise HTTPException(status_code=404, detail=f"Category '{category_name}' does not exist.")
-
-    # Check if package and version don't already exist in the category
     if package_manager.does_package_version_exist(category_name, asset_info.package_name, asset_info.version):
         raise HTTPException(status_code=400, detail=f"Package '{asset_info.package_name}' with version '{asset_info.version}' already exists in category '{category_name}'.")
+    if manager.can_upload_asset(asset_info, category_name) is False:
+        raise HTTPException(status_code=400, detail="Asset cannot be uploaded due to validation failure.")
+    
+    try:
+        package_manager.create_new_package_from_asset_info(category_name, asset_info.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    PackageManager.create_package_info_file(category_name, asset_info.package_name)
+    PackageManager.add_version_to_package_info(category_name, asset_info.package_name, asset_info.version)
+
+    AssetManager.save_asset_info(category_name, asset_info.package_name, asset_info.version, asset_info.model_dump())
+
+    return {"status": "ok", "category": category_name, "package_name": asset_info.package_name, "version": asset_info.version}
+
+@app.post("/assets/categories/{category_name}/upload")
+async def upload_asset(category_name: str, asset_info: Asset_Info = Depends(Asset_Info.parse_asset_info), file: UploadFile = File(...)):
+    """Multipart/form-data upload that combines asset_info and asset archive in one request."""
+    allowed_mime = {"application/zip"}
+    filename = str(file.filename or "")
+
+    if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):
+        raise HTTPException(status_code=400, detail="File type not supported. Please upload a ZIP file.")
+    if SafetyUtils.check_name_safety(category_name) is False:
+        raise HTTPException(status_code=400, detail="Invalid category name.")
+    if manager.can_upload_asset(asset_info, category_name) is False:
+        raise HTTPException(status_code=400, detail="Asset cannot be uploaded due to validation failure.")
     
     # Create the new package structure
     try:

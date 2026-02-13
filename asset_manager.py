@@ -1,3 +1,6 @@
+from fastapi import HTTPException
+from asset_info import DEFAULT_VERSION, Asset_Info
+from category_manager import CategoryManager
 from config import CATEGORIES_PATH
 from fastapi.responses import FileResponse, PlainTextResponse
 import os
@@ -153,3 +156,22 @@ class AssetManager:
                 json.dump(asset_info, f, indent=4)
         except OSError:
             raise ValueError("Unable to save asset info.")
+    
+    @staticmethod
+    def can_upload_asset(asset_info: "Asset_Info", category_name: str) -> bool:
+        
+        if asset_info.version == DEFAULT_VERSION:
+        # If the version is the default, we only allow the upload if the package does not already exist
+            if PackageManager.does_package_exist(category_name, asset_info.package_name):
+                raise HTTPException(status_code=400, detail="Version field is missing in asset_info JSON. " \
+                "A version is required when the package already exists.")
+        
+        # Check if category exists
+        if not CategoryManager.does_category_exist(category_name):
+            raise HTTPException(status_code=404, detail=f"Category '{category_name}' does not exist.")
+
+        # Check if package and version don't already exist in the category
+        if PackageManager.does_package_version_exist(category_name, asset_info.package_name, asset_info.version):
+            raise HTTPException(status_code=400, detail=f"Package '{asset_info.package_name}' with version '{asset_info.version}' already exists in category '{category_name}'.")
+
+        return True
