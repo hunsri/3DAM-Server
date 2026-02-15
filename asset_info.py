@@ -28,14 +28,17 @@ class Asset_Info(BaseModel):
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid asset_info JSON. Expected fields: {expected_fields}")
 
-        if not SafetyUtils.check_many_names_safety(ret.package_name, ret.version, ret.asset_file_name):
-            raise HTTPException(status_code=400, detail="Invalid package name, asset file name, or version in asset_info.")
 
+        if ret.version == "":
+            ret.version = DEFAULT_VERSION
         if ret.authors is None:
             ret.authors = DEFAULT_EMPTY_LIST
         if ret.keywords is None:
             ret.keywords = DEFAULT_EMPTY_LIST
         if ret.origin_history is None:
             ret.origin_history = DEFAULT_EMPTY_LIST
+
+        if not SafetyUtils.check_many_names_safety(ret.package_name, ret.version, ret.asset_file_name):
+            raise HTTPException(status_code=400, detail="Invalid package name, asset file name, or version in asset_info.")
 
         return ret

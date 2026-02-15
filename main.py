@@ -1,5 +1,5 @@
-from typing import Annotated, Optional
-from fastapi import Depends, FastAPI, File, Form, Request, UploadFile, HTTPException, Response
+from typing import Optional
+from fastapi import Body, Depends, FastAPI, File, Request, UploadFile, HTTPException, Response
 from fastapi.websockets import WebSocket
 
 import shutil
@@ -151,18 +151,12 @@ async def upload_preview_image(category_name: str, package_name: str, version: s
 
     return {"status": "ok", "category": category_name, "package_name": package_name}
 
-@app.post("/assets/categories/{category_name}/upload_asset_archive")
-async def upload_asset_archive(category_name: str, package_name: str, version: str, file: UploadFile = File(..., description="ZIP file containing the asset archive")):
+@app.post("/assets/categories/{category_name}/{package_name}/{version}/upload_asset_archive")
+async def upload_asset_archive(category_name: str, package_name: str, version: str, file: bytes = Body(..., media_type="application/octet-stream", description="Binary content of the asset archive ZIP file to be uploaded for this package version.")):
     """
     Endpoint for uploading the asset archive (ZIP file) after uploading the asset info. Will fail if asset info has not been uploaded or the archive already exsists.
     """
     
-    allowed_mime = {"application/zip"}
-    filename = str(file.filename or "")
-
-    if file.content_type not in allowed_mime and not filename.lower().endswith('.zip'):
-        raise HTTPException(status_code=400, detail="File type not supported. Please upload a ZIP file.")
-
     if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
         raise HTTPException(status_code=400, detail="Invalid category, package name, or version.")
 
@@ -183,19 +177,14 @@ async def upload_asset_archive(category_name: str, package_name: str, version: s
 
     try:
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
-    finally:
-        try:
-            await file.close()
-        except Exception:
-            pass
 
     return {"status": "ok", "category": category_name, "package_name": package_name, "version": version}
 
 @app.post("/assets/categories/{category_name}/upload_asset_info")
-async def upload_asset_info(category_name: str, asset_info: Asset_Info = Depends(Asset_Info.parse_asset_info)):
+async def upload_asset_info(category_name: str, asset_info: Asset_Info):
     """
     **Endpoint for uploading asset info JSON without the asset archive.**
     This is provided as an easier alternative to the endpoint at **/upload**
