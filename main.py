@@ -115,14 +115,9 @@ async def check_package_existence(category_name: str, package_name: str, request
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.post("/assets/categories/{category_name}/{package_name}/preview")
-async def upload_preview_image(category_name: str, package_name: str, version: str, file: UploadFile = File(..., description="Image file (PNG) to be used as the preview image for this asset version")):
-    allowed_mime = {"image/png"}
-    filename = str(file.filename or "")
-
-    if file.content_type not in allowed_mime and not any(filename.lower().endswith(ext) for ext in ['.png']):
-        raise HTTPException(status_code=400, detail="File type not supported. Please upload an image file (PNG).")
-
+@app.post("/assets/categories/{category_name}/{package_name}/{version}/upload_asset_preview")
+async def upload_preview_image(category_name: str, package_name: str, version: str, file: bytes = Body(..., media_type="application/octet-stream")):
+   
     if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
         raise HTTPException(status_code=400, detail="Invalid category, package name, or version.")
 
@@ -140,16 +135,13 @@ async def upload_preview_image(category_name: str, package_name: str, version: s
     preview_path = manager.get_asset_index_path(category_name, package_name, version)
 
     try:
-        manager.create_asset_preview_image(category_name, package_name, version, await file.read())
+        manager.create_asset_preview_image(category_name, package_name, version, file)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
     finally:
-        try:
-            await file.close()
-        except Exception:
-            pass
+        pass
 
-    return {"status": "ok", "category": category_name, "package_name": package_name}
+    return {"status": "ok", "category": category_name, "package_name": package_name, "version": version}
 
 @app.post("/assets/categories/{category_name}/{package_name}/{version}/upload_asset_archive")
 async def upload_asset_archive(category_name: str, package_name: str, version: str, file: bytes = Body(..., media_type="application/octet-stream", description="Binary content of the asset archive ZIP file to be uploaded for this package version.")):
