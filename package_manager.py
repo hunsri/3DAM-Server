@@ -1,4 +1,5 @@
 import json
+import uuid
 from category_manager import CategoryManager
 from config import CATEGORIES_PATH
 from safety_utils import SafetyUtils
@@ -121,6 +122,7 @@ class PackageManager:
         if not package_info_path.exists():
             # Create a basic package info structure
             package_info = {
+                "package_uuid": str(uuid.uuid4()),
                 "package_name": package_name,
                 "versions": []
             }
