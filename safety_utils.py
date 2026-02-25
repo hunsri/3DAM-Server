@@ -38,3 +38,17 @@ class SafetyUtils:
             return None
         
         return resolved_file_path
+    
+    @staticmethod
+    def does_category_and_package_exist(category_name: str, package_name: str) -> bool:
+        # check if the category and package exist
+        category_path = CATEGORIES_PATH / category_name
+        if not category_path.exists() or not category_path.is_dir():
+            raise ValueError(f"Category '{category_name}' does not exist.")
+        package_path = category_path / package_name
+        if not package_path.exists() or not package_path.is_dir():
+            raise ValueError(f"Package '{package_name}' does not exist in category '{category_name}'.")
+        return True
+
+        
+    

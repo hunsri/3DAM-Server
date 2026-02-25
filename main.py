@@ -14,6 +14,7 @@ from package_manager import ASSET_ZIP_NAME, PackageManager
 # from pydantic import BaseModel
 from asset_info import DEFAULT_VERSION, Asset_Info
 from safety_utils import SafetyUtils
+from social_manager import SocialManager
 
 # module-level manager instances
 manager = AssetManager()
@@ -242,3 +243,56 @@ async def upload_asset(category_name: str, asset_info: Asset_Info = Depends(Asse
     AssetManager.save_asset_info(category_name, asset_info.package_name, asset_info.version, asset_info.model_dump())
 
     return {"status": "ok", "category": category_name, "package_name": asset_info.package_name, "version": asset_info.version}
+
+@app.get("/assets/categories/{category_name}/{package_name}/comments")
+async def get_comments_for_package(category_name: str, package_name: str, user_uuid: str = ""):
+    try:
+        comments = SocialManager.get_comments_for_package(category_name, package_name, user_uuid)
+        return comments
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.get("/assets/categories/{category_name}/{package_name}/favorites")
+async def get_favorites_for_package(category_name: str, package_name: str, user_uuid: str = ""):
+    try:
+        favorites = SocialManager.get_favorites_for_package(category_name, package_name, user_uuid)
+        return favorites
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.patch("/assets/categories/{category_name}/{package_name}/add_comment")
+async def add_comment_to_package(category_name: str, package_name: str, user_uuid: str = Body(...), comment_text: str = Body(...)):
+    try:
+        SocialManager.add_comment_to_package(category_name, package_name, user_uuid, comment_text)
+        return {"status": "ok", "category": category_name, "package_name": package_name}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.patch("/assets/categories/{category_name}/{package_name}/add_favorite")
+async def add_favorite_to_package(category_name: str, package_name: str, user_uuid: str = Body(...)):
+    try:
+        SocialManager.add_favorite_to_package(category_name, package_name, user_uuid)
+        return {"status": "ok", "category": category_name, "package_name": package_name}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.patch("/assets/categories/{category_name}/{package_name}/remove_comment")
+async def remove_comment_from_package(category_name: str, package_name: str, user_uuid: str = Body(...), message_uuid: str = Body(...)):
+    try:
+        if SocialManager.remove_comment_from_package(category_name, package_name, user_uuid, message_uuid):
+            return {"status": "ok", "category": category_name, "package_name": package_name}
+        else:
+            raise HTTPException(status_code=404, detail=f"No comment found with message UUID '{message_uuid}' for user '{user_uuid}' in package '{package_name}' of category '{category_name}'.")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# remove a favorite from a package for a user
+@app.patch("/assets/categories/{category_name}/{package_name}/remove_favorite")
+async def remove_favorite_from_package(category_name: str, package_name: str, user_uuid: str = Body(...)):
+    try:
+        if SocialManager.remove_favorite_from_package(category_name, package_name, user_uuid):
+            return {"status": "ok", "category": category_name, "package_name": package_name}
+        else:
+            raise HTTPException(status_code=404, detail=f"No favorite found for user '{user_uuid}' in package '{package_name}' of category '{category_name}'.")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
