@@ -269,7 +269,7 @@ async def add_comment_to_package(category_name: str, package_name: str, user_uui
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.patch("/assets/categories/{category_name}/{package_name}/add_favorite")
-async def add_favorite_to_package(category_name: str, package_name: str, user_uuid: str = Body(...)):
+async def add_favorite_to_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True)):
     try:
         SocialManager.add_favorite_to_package(category_name, package_name, user_uuid)
         return {"status": "ok", "category": category_name, "package_name": package_name}
@@ -277,7 +277,7 @@ async def add_favorite_to_package(category_name: str, package_name: str, user_uu
         raise HTTPException(status_code=404, detail=str(e))
 
 @app.patch("/assets/categories/{category_name}/{package_name}/remove_comment")
-async def remove_comment_from_package(category_name: str, package_name: str, user_uuid: str = Body(...), message_uuid: str = Body(...)):
+async def remove_comment_from_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True), message_uuid: str = Body(..., embed=True)):
     try:
         if SocialManager.remove_comment_from_package(category_name, package_name, user_uuid, message_uuid):
             return {"status": "ok", "category": category_name, "package_name": package_name}
@@ -288,7 +288,7 @@ async def remove_comment_from_package(category_name: str, package_name: str, use
 
 # remove a favorite from a package for a user
 @app.patch("/assets/categories/{category_name}/{package_name}/remove_favorite")
-async def remove_favorite_from_package(category_name: str, package_name: str, user_uuid: str = Body(...)):
+async def remove_favorite_from_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True)):
     try:
         if SocialManager.remove_favorite_from_package(category_name, package_name, user_uuid):
             return {"status": "ok", "category": category_name, "package_name": package_name}
