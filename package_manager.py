@@ -17,7 +17,12 @@ class PackageManager:
         if not category_path.exists() or not category_path.is_dir():
             raise ValueError(f"Category '{category_name}' does not exist.")
         
-        return [f.name for f in category_path.iterdir() if f.is_dir()]
+        packages: list[str] = []
+        for f in category_path.iterdir():
+            if f.is_dir():
+                packages.append(f.name)
+
+        return sorted(packages, key=str.casefold)
 
     @staticmethod
     def get_package_info(category_name: str, package_name: str) -> dict:
