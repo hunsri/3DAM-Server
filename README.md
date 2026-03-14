@@ -11,22 +11,27 @@ This repository contains a simple model server designed to serve models to a [Go
 
 ### Installation
 Creation of a virtual environment is recommended!
+
+<b>On Windows:</b>
 ```
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
 ```
-
-You can make sure that activation of the virtual environment was successful.
-The result should point to the installation path of this project.
-
+<b>On Linux (Debian):</b>
 ```
-python -c "import sys; print(sys.executable)"
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 
 ### Startup Command
 Run the server locally using the following command:
 ```bash
-fastapi dev main.py
+fastapi run main.py
+```
+Or alternatively, if you want to set a port:
+```
+uvicorn main:app --host 0.0.0.0 --port <portnumber>
 ```
