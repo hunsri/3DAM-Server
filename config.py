@@ -39,7 +39,7 @@ _cfg = _Config()
 
 # globally accessible constants
 SERVERNAME = _cfg.server_name
-SERVER_VERSION = "indev"
+SERVER_VERSION = "indev 0.1"
 MOTD = _cfg.motd
 PORT = _cfg.port
 ASSETS_DIRECTORY = _cfg.assets_directory or "server_assets"

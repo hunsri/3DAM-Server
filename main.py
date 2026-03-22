@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from category_manager import CategoryManager
-from config import SERVERNAME, MOTD, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
+from config import SERVERNAME, MOTD, SERVER_VERSION, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
 from asset_manager import AssetManager
 from package_manager import ASSET_ZIP_NAME, PackageManager
 
@@ -21,7 +21,11 @@ manager = AssetManager()
 package_manager = PackageManager()
 category_manager = CategoryManager()
 
-app = FastAPI()
+app = FastAPI(
+    title=SERVERNAME or "3D Asset Server",
+    description=MOTD or "",
+    version=SERVER_VERSION,
+)
 
 @app.get("/")
 async def read_main():
@@ -29,6 +33,13 @@ async def read_main():
 
 @app.get("/info")
 async def get_info():
+    """
+    Get general information about the server as a JSON-serializable dict, including
+     - `server_name`
+     - `server_version`
+     - `motd`
+     - `categories`
+    """
     return get_server_info()
 
 @app.websocket("/ws")
@@ -38,6 +49,9 @@ async def websocket(websocket: WebSocket):
 
 @app.get("/assets/categories/{category_name}/{package_name}/package_info")
 async def get_package_info(category_name: str, package_name: str):
+    """
+    Get information about a specific package in a category.
+    """
     try:
         info = package_manager.get_package_info(category_name, package_name)
         return info
@@ -47,6 +61,9 @@ async def get_package_info(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/download")
 async def download_asset_http(category_name: str, package_name: str):
+    """
+    Download a specific asset package. The provided package is the latest version of the package.
+    """
     try:
         asset_path = manager.get_asset_archive_location(category_name, package_name)
         with open(asset_path, "rb") as file:
@@ -58,6 +75,11 @@ async def download_asset_http(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/asset_info_file")
 async def get_asset_info_file(category_name: str, package_name: str):
+    """
+    \u26A0\uFE0F **Warning:** In most cases you want to refer to the `/asset_info` endpoint instead of this one, as it provides the parsed JSON content of the asset info.\n
+    Similar to the `/package_info` endpoint but provides the raw `asset_info.json` file content instead of the parsed JSON.\n
+    Provides information about the asset of the given package name. The provided information is the latest version of the package.
+    """
     try:
         return manager.get_asset_info_file(category_name, package_name)
     except ValueError as e:
@@ -65,6 +87,9 @@ async def get_asset_info_file(category_name: str, package_name: str):
     
 @app.get("/assets/categories/{category_name}/{package_name}/asset_info")
 async def get_asset_info(category_name: str, package_name: str):
+    """
+    Provides information about the asset of the given package name. The provided information is the latest version of the package.
+    """
     try:
         info = manager.get_asset_info(category_name, package_name)
         return info
@@ -73,6 +98,9 @@ async def get_asset_info(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/readme")
 async def get_asset_readme(category_name: str, package_name: str):
+    """
+    Provides the content of the README file for the given package if it exists. Returns the readme of the latest version of the package.
+    """
     try:
         return manager.get_asset_readme(category_name, package_name)
     except ValueError as e:
@@ -80,6 +108,9 @@ async def get_asset_readme(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/license")
 async def get_asset_license(category_name: str, package_name: str):
+    """
+    Provides the content of the LICENSE file for the given package if it exists. Returns the license of the latest version of the package.
+    """
     try:
         return manager.get_asset_license(category_name, package_name)
     except ValueError as e:
@@ -87,6 +118,9 @@ async def get_asset_license(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/preview")
 async def get_asset_preview_image(category_name: str, package_name: str):
+    """
+    Provides the preview image for the given package if it exists. Returns the preview image of the latest version of the package.
+    """
     try:
         return manager.get_asset_preview_image(category_name, package_name)
     except ValueError as e:
@@ -94,6 +128,15 @@ async def get_asset_preview_image(category_name: str, package_name: str):
 
 @app.get("/assets/categories/{category_name}/package_list")
 async def list_packages_in_category(category_name: str):
+    """
+    List all available packages in a given category.
+    Example response:
+    ```json
+    {   "category": "vehicles",
+        "packages": ["car_model_a", "car_model_b", "plane_model_a"]
+    }
+    ```
+    """
     try:
         packages = package_manager.list_packages_in_category(category_name)
         return {"category": category_name, "packages": packages}
@@ -103,6 +146,12 @@ async def list_packages_in_category(category_name: str):
 
 @app.get("/assets/categories/{category_name}/{package_name}/check_existence")
 async def check_package_existence(category_name: str, package_name: str, request: Request, version: Optional[str] = None):
+    """
+    Check if a package and optionally a specific version of the package exists in the given category. If no version is provided, only the existence of the package is checked based on the existence of the package directory.
+     - If no version is provided, the response will be `{"package_exists": true/false}`
+     - If a version is provided, the response will be `{"package_exists": true/false, "version_exists": true/false}`
+     - Note that this endpoint does not check for the existence of an asset archive (ZIP file) for the package version, but only checks for the existence of the package directory and optionally the version entry in the package info.
+    """
 
     version_str = request.query_params.get("version")
     try:
@@ -147,7 +196,7 @@ async def upload_preview_image(category_name: str, package_name: str, version: s
 @app.post("/assets/categories/{category_name}/{package_name}/{version}/upload_asset_archive")
 async def upload_asset_archive(category_name: str, package_name: str, version: str, file: bytes = Body(..., media_type="application/octet-stream", description="Binary content of the asset archive ZIP file to be uploaded for this package version.")):
     """
-    Endpoint for uploading the asset archive (ZIP file) after uploading the asset info. Will fail if asset info has not been uploaded or the archive already exsists.
+    Endpoint for uploading the asset archive (ZIP file) after uploading the asset info. Will fail if asset info has not been uploaded or the archive already exists.
     """
     
     if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
