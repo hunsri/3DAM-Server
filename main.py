@@ -29,6 +29,16 @@ app = FastAPI(
 
 @app.get("/")
 async def read_main():
+    """
+    Simple endpoint to check if the server is running.
+
+    Success response:
+    ```json
+    {
+        "msg": "Hello World"
+    }
+    ```
+    """
     return {"msg": "Hello World"}
 
 @app.get("/info")
@@ -167,6 +177,9 @@ async def check_package_existence(category_name: str, package_name: str, request
 
 @app.post("/assets/categories/{category_name}/{package_name}/{version}/upload_asset_preview")
 async def upload_preview_image(category_name: str, package_name: str, version: str, file: bytes = Body(..., media_type="application/octet-stream")):
+    """
+    Endpoint for uploading a preview image for a specific package version. Will fail if the package version does not exist or if a preview image already exists for the package version.
+    """
    
     if SafetyUtils.check_many_names_safety(category_name, package_name, version) is False:
         raise HTTPException(status_code=400, detail="Invalid category, package name, or version.")
@@ -295,6 +308,29 @@ async def upload_asset(category_name: str, asset_info: Asset_Info = Depends(Asse
 
 @app.get("/assets/categories/{category_name}/{package_name}/comments")
 async def get_comments_for_package(category_name: str, package_name: str, user_uuid: str = ""):
+    """
+    Get all comments for a specific package. The field `is_user_comment` provides a boolean that indicates whether the author of the comment matches the provided author uuid.
+    
+    Example response:
+    ```json
+    {
+        "comments": [
+            {
+            "message_uuid": "60b18705-0cd2-4440-968b-b13fdc4ff3a6",
+            "comment_text": "Can recommend this asset.",
+            "timestamp": "2026-02-25T11:15:24.305169+00:00",
+            "is_user_comment": true
+            },
+            {
+            "message_uuid": "2e95846b-908b-4d9b-98bf-755a98547cb0",
+            "comment_text": "Some good stuff!",
+            "timestamp": "2026-02-25T11:15:47.136400+00:00",
+            "is_user_comment": false
+            }
+        ]
+    }
+    ```
+    """
     try:
         comments = SocialManager.get_comments_for_package(category_name, package_name, user_uuid)
         return comments
@@ -303,6 +339,17 @@ async def get_comments_for_package(category_name: str, package_name: str, user_u
 
 @app.get("/assets/categories/{category_name}/{package_name}/favorites")
 async def get_favorites_for_package(category_name: str, package_name: str, user_uuid: str = ""):
+    """
+    Get the favorite count for a specific package and whether the given user has favorited it.
+    
+    Example response:
+    ```json
+    {
+        "favorites_count": 5,
+        "user_has_favorited": false
+    }
+    ```
+    """
     try:
         favorites = SocialManager.get_favorites_for_package(category_name, package_name, user_uuid)
         return favorites
@@ -311,6 +358,19 @@ async def get_favorites_for_package(category_name: str, package_name: str, user_
 
 @app.patch("/assets/categories/{category_name}/{package_name}/add_comment")
 async def add_comment_to_package(category_name: str, package_name: str, user_uuid: str = Body(...), comment_text: str = Body(...)):
+    """
+    Add a comment to a specific package. The request body should contain the `user_uuid` of the author and the `comment_text`.
+    The response will indicate success or failure of adding the comment.
+    
+    Example response:
+    ```json
+    {
+        "status": "ok",
+        "category": "{category_name}",
+        "package_name": "{package_name}"
+    }
+    ```
+    """
     try:
         SocialManager.add_comment_to_package(category_name, package_name, user_uuid, comment_text)
         return {"status": "ok", "category": category_name, "package_name": package_name}
@@ -319,6 +379,19 @@ async def add_comment_to_package(category_name: str, package_name: str, user_uui
 
 @app.patch("/assets/categories/{category_name}/{package_name}/add_favorite")
 async def add_favorite_to_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True)):
+    """
+    Add a favorite to a specific package for a user. The request body should contain the `user_uuid` of the user who wants to favorite the package.
+    The response will indicate success or failure of adding the favorite.
+
+    Success response:
+    ```json
+    {
+        "status": "ok",
+        "category": "{category_name}",
+        "package_name": "{package_name}"
+    }
+    ```
+    """
     try:
         SocialManager.add_favorite_to_package(category_name, package_name, user_uuid)
         return {"status": "ok", "category": category_name, "package_name": package_name}
@@ -327,6 +400,18 @@ async def add_favorite_to_package(category_name: str, package_name: str, user_uu
 
 @app.patch("/assets/categories/{category_name}/{package_name}/remove_comment")
 async def remove_comment_from_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True), message_uuid: str = Body(..., embed=True)):
+    """
+    Remove a comment from a specific package. The request body should contain the `user_uuid` of the author and the `message_uuid` of the comment to remove.
+
+    Success response:
+    ```json
+    {
+        "status": "ok",
+        "category": "{category_name}",
+        "package_name": "{package_name}"
+    }
+    ```
+    """
     try:
         if SocialManager.remove_comment_from_package(category_name, package_name, user_uuid, message_uuid):
             return {"status": "ok", "category": category_name, "package_name": package_name}
@@ -338,6 +423,19 @@ async def remove_comment_from_package(category_name: str, package_name: str, use
 # remove a favorite from a package for a user
 @app.patch("/assets/categories/{category_name}/{package_name}/remove_favorite")
 async def remove_favorite_from_package(category_name: str, package_name: str, user_uuid: str = Body(..., embed=True)):
+    """
+    Remove a favorite from a specific package for a user. The request body should contain the `user_uuid` of the user who wants to remove the favorite.
+    The response will indicate success or failure of removing the favorite.
+
+    Success response:
+    ```json
+    {
+        "status": "ok",
+        "category": "{category_name}",
+        "package_name": "{package_name}"
+    }
+    ```
+    """
     try:
         if SocialManager.remove_favorite_from_package(category_name, package_name, user_uuid):
             return {"status": "ok", "category": category_name, "package_name": package_name}
