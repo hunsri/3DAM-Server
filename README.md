@@ -6,11 +6,10 @@ This repository contains a simple model server designed to serve models to a [Go
 
 ### Requirements
 - Python 3.8+
-- FastAPI
-- Uvicorn
 
 ### Installation
-Creation of a virtual environment is recommended!
+Download and run the following commands.<br>
+This creates a virtual environment to keep things clean and downloads everything needed.<br> *Simple as that!* <br>
 
 <b>On Windows:</b>
 ```
@@ -25,6 +24,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Customization (optional)
+If you want to customize your asset server, copy `config.json.example` and rename it to `config.json`. <br>
+You can then edit the values inside the newly created `config.json`!
 
 ### Startup Command
 Run the server locally using the following command:
