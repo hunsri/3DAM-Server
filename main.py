@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from category_manager import CategoryManager
-from config import SERVERNAME, MOTD, SERVER_VERSION, PORT, ASSETS_DIRECTORY, MAX_CONNECTIONS, CATEGORIES, get_server_info, get_server_info_json
+from config import SERVERNAME, MOTD, SERVER_VERSION, ASSETS_DIRECTORY, CATEGORIES, get_server_info, get_server_info_json
 from asset_manager import AssetManager
 from package_manager import ASSET_ZIP_NAME, PackageManager
 

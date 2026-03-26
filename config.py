@@ -28,9 +28,7 @@ class _Config:
 
 		self.server_name = data.get("server_name")
 		self.motd = data.get("motd")
-		self.port = data.get("port")
 		self.assets_directory = data.get("assets_directory")
-		self.max_connections = data.get("max_connections")
 		self.categories = tuple(data.get("categories", []))
 
 
@@ -41,9 +39,7 @@ _cfg = _Config()
 SERVERNAME = _cfg.server_name
 SERVER_VERSION = "indev 0.1"
 MOTD = _cfg.motd
-PORT = _cfg.port
 ASSETS_DIRECTORY = _cfg.assets_directory or "server_assets"
-MAX_CONNECTIONS = _cfg.max_connections
 CATEGORIES = _cfg.categories
 
 __all__ = [
@@ -52,9 +48,7 @@ __all__ = [
 	"SERVERNAME",
 	"SERVER_VERSION",
 	"MOTD",
-	"PORT",
 	"ASSETS_DIRECTORY",
-	"MAX_CONNECTIONS",
 	"CATEGORIES",
 ]
 
