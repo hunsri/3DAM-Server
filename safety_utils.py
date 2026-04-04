@@ -1,3 +1,11 @@
+"""
+Class for providing safety checks for file paths and names to prevent security vulnerabilities
+such as path traversal and injection attacks.
+
+Notes:
+- Uses `Path.is_relative_to()`, which requires Python 3.9+.
+"""
+
 from config import CATEGORIES_PATH
 from pathlib import Path
 from typing import Optional
@@ -8,16 +16,31 @@ class SafetyUtils:
 
     @staticmethod
     def check_many_names_safety(*names: str) -> bool:
+        """
+        Combined call of `check_name_safety` for multiple names, returning True only if all names are safe.
+        """
         return all(SafetyUtils.check_name_safety(name) for name in names)
 
     @staticmethod
     def check_name_safety(name: str) -> bool:
+        """
+        Checks if the provided name is safe by ensuring it only contains allowed characters and does not include path traversal patterns.
+        Allowed characters: alphanumeric, underscores, hyphens, and periods.
+        """
         # Allow only alphanumeric characters, underscores, hyphens, and periods
         name_re = re.compile(r'^[A-Za-z0-9_.-]+$')
+        # Note: this rejects path separators ("/", "\\"). It does not explicitly
+        # reject the literal sequence ".."; traversal is prevented by resolving
+        # and verifying final paths in `safe_resolved_path`.
         return bool(name_re.match(name))
 
     @staticmethod
     def safe_resolved_path(path_to_file: Path, file_name: str) -> Optional[os.PathLike]:
+        """
+        Safely resolves a file path within the categories base directory.
+        Returns the resolved path if it's safe, otherwise returns None.
+        """
+
         # Normalize to Path to access file methods safely
         path = path_to_file / file_name
 
@@ -41,6 +64,14 @@ class SafetyUtils:
     
     @staticmethod
     def does_category_and_package_exist(category_name: str, package_name: str) -> bool:
+        """
+        Checks if the specified category and package exist within the categories base directory.
+        Returns True if both exist, otherwise raises a ValueError with a message.
+        
+        **Note**: non-atomic existence checks can lead to TOCTOU races 
+        callers should re-check or open resources securely when needed
+        """
+
         # check if the category and package exist
         category_path = CATEGORIES_PATH / category_name
         if not category_path.exists() or not category_path.is_dir():
