@@ -1,3 +1,6 @@
+"""
+Class for providing utility functions for managing the asset packages.
+"""
 import json
 import uuid
 from category_manager import CategoryManager
@@ -12,7 +15,11 @@ class PackageManager:
 
     @staticmethod
     def list_packages_in_category(category_name: str) -> list[str]:
-        """List all package names in the given category."""
+        """
+        List all package names in the given category.<br>
+        Raises ValueError if the category does not exist.<br><br>
+        Effectively returns the names of all subdirectories in the category directory, since each package is represented by a folder.
+        """
         category_path = CATEGORIES_PATH / category_name
         if not category_path.exists() or not category_path.is_dir():
             raise ValueError(f"Category '{category_name}' does not exist.")
@@ -26,6 +33,11 @@ class PackageManager:
 
     @staticmethod
     def get_package_info(category_name: str, package_name: str) -> dict:
+        """
+        Retrieves the package info JSON for the specified package.<br>
+        Raises ValueError if the category or package name is invalid, if the package does not exist,
+        or if the package info JSON is malformed. 
+        """
         if not SafetyUtils.check_name_safety(category_name) \
             or not SafetyUtils.check_name_safety(package_name):
             raise ValueError("Invalid category or package name.")
@@ -43,6 +55,11 @@ class PackageManager:
 
     @staticmethod
     def latest_version(category_name: str, package_name: str) -> str:
+        """
+        Retrieves the latest version string for the specified package.<br>
+        Raises ValueError if the version information is missing or malformed.
+        Returns an empty string if the package info file does not exist or cannot be read.
+        """
 
         # Read the package_info.json file to get the version
         try:
@@ -61,6 +78,12 @@ class PackageManager:
     
     @staticmethod
     def does_package_exist(category_name: str, package_name: str) -> bool:
+        """
+        Checks if a folder of the given package name exists for the specified category.<br>
+        Raises ValueError if the category or package name is invalid.<br>
+        Returns `True` if the directory for the given package name exists, otherwise `False`.<br><br>
+        **Note:** no check for the existence of `package_info` or any `version`.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
 
@@ -73,6 +96,11 @@ class PackageManager:
     
     @staticmethod
     def does_package_version_exist(category_name: str, package_name: str, version: str) -> bool:
+        """
+        Checks if the version directory of the given version name exists for the specified package and category.<br>
+        Raises ValueError if the category, package name, or version is invalid.<br>
+        Returns `True` if the directory for the given version exists, otherwise `False`.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
             raise ValueError("Invalid category, package name, or version.")
 
@@ -85,6 +113,12 @@ class PackageManager:
     
     @staticmethod
     def create_new_package_from_asset_info(category_name: str, asset_info: dict) -> str:
+        """
+        Creates a new package structure based on the provided asset info and returns the path to the version directory.<br>
+        Raises ValueError if the category name, package name, or version in the asset info is invalid, or if the category does not exist.<br>
+        The `asset_info` dict must contain at least the keys `package_name` and optionally `version`.
+        If `version` is not provided, it defaults to `"initial_version"`.
+        """
         if not SafetyUtils.check_name_safety(category_name):
             raise ValueError("Invalid category name.")
         
@@ -107,6 +141,11 @@ class PackageManager:
 
     @staticmethod
     def create_package_structure_if_category_exists(category_name: str, package_name: str, version: str) -> None:
+        """
+        Creates the directory structure for a package version if the specified category exists.<br>
+        Raises ValueError if the category name, package name, or version is invalid, or if the category does not exist.<br><br>
+        **Note**: this does not create or modify the package info file, it only creates the directory structure for the version.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
             raise ValueError("Invalid category, package name, or version.")
         
@@ -120,6 +159,11 @@ class PackageManager:
     
     @staticmethod
     def create_package_info_file(category_name: str, package_name: str) -> None:
+        """
+        Creates the package info JSON file for the specified package if it does not already exist.<br>
+        Raises ValueError if the category name or package name is invalid.<br>
+        The created package info file will contain a unique `package_uuid`, the `package_name`, and an empty `versions` list.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
@@ -136,6 +180,12 @@ class PackageManager:
 
     @staticmethod
     def add_version_to_package_info(category_name: str, package_name: str, version: str) -> None:
+        """
+        Adds the version entry to the `package_info` file for the specified package.<br>
+        Raises ValueError if the category name, package name, or version is invalid, or if the package info file does not exist.<br>
+        Raises ValueError if the package info JSON is malformed.<br>
+        If the version already exists in the package info, this does nothing.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name, version):
             raise ValueError("Invalid category, package name, or version.")
         
