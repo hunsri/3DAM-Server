@@ -8,11 +8,24 @@ from datetime import timezone
 import datetime
 
 class SocialManager:
+    """
+    Class for managing social interactions (favorites and comments) for packages in the asset server.
+    Each package can have a corresponding `package_socials.json` file that stores its social data.
+    If the file does not exist when an interaction is attempted, it will be created.
+    """
 
     PACKAGE_SOCIALS_FILENAME = "package_socials.json"
 
     @staticmethod
     def init_social_json_for_package(category_name: str, package_name: str) -> str:
+        """
+        Initializes the `package_socials.json` file for a given package if it doesn't already exist.
+        
+        Raises a ValueError if the category or package name is not safe.
+        
+        Returns the path to the social JSON file.
+        """
+
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
@@ -31,6 +44,12 @@ class SocialManager:
 
     @staticmethod
     def get_favorites_for_package(category_name: str, package_name: str, user_uuid: str) -> dict:
+        """
+        Retrieves the favorite count for a given package.
+        Also checks if the requesting user has favorited the package, returning a dict with both pieces of information.
+
+        Returns keys `favorites_count` (int) and `user_has_favorited` (bool).
+        """
         dict_with_favorites = SocialManager._get_raw_favorites_for_package(category_name, package_name)
         
         # Construct a response that includes whether the user has favorited the package and the total count of favorites
@@ -43,6 +62,16 @@ class SocialManager:
 
     @staticmethod
     def _get_raw_favorites_for_package(category_name: str, package_name: str) -> dict:
+        """
+        Retrieves the raw list of user UUIDs who have favorited the package.
+        
+        Returns a dict with key `favorites` containing the list of user UUIDs.
+
+        If the category or package does not exist, or if the social JSON file does not exist, returns an empty list of favorites.
+
+        **NOTE**: This method exposes user UUIDs and should be used with caution.
+        It is intended for internal use, not for direct client responses.
+        """
         social_json_path = CATEGORIES_PATH / category_name / package_name / SocialManager.PACKAGE_SOCIALS_FILENAME
 
         if not SafetyUtils.does_category_and_package_exist(category_name, package_name):
@@ -55,11 +84,18 @@ class SocialManager:
 
     @staticmethod
     def add_favorite_to_package(category_name: str, package_name: str, user_uuid: str) -> None:
+        """
+        Adds the user's UUID to the list of favorites for the specified package.
+        If the user has already favorited the package, this method does nothing.
+
+        Raises a ValueError if the category or package name is not safe.
+        Raises a ValueError if the category or package does not exist.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
         if not SafetyUtils.does_category_and_package_exist(category_name, package_name):
-            return
+            raise ValueError("Category or package not found.")
 
         social_json_path = CATEGORIES_PATH / category_name / package_name / SocialManager.PACKAGE_SOCIALS_FILENAME
         if not social_json_path.exists():
@@ -76,15 +112,23 @@ class SocialManager:
 
     @staticmethod
     def remove_favorite_from_package(category_name: str, package_name: str, user_uuid: str) -> bool:
+        """
+        Removes the user's UUID from the list of favorites for the specified package.
+
+        Raises a ValueError if the category or package name is not safe.
+        Raises a ValueError if the category or package does not exist.
+
+        Returns `True` if the user was successfully removed, or `False` if the user was not in the list.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
         if not SafetyUtils.does_category_and_package_exist(category_name, package_name):
-            return False
+            raise ValueError("Category or package not found.")
 
         social_json_path = CATEGORIES_PATH / category_name / package_name / SocialManager.PACKAGE_SOCIALS_FILENAME
         if not social_json_path.exists():
-            return False
+            raise ValueError("Category or package not found.")
         
         with open(social_json_path, 'r', encoding='utf-8') as f:
             social_info = json.load(f)
@@ -101,7 +145,15 @@ class SocialManager:
 
     @staticmethod
     def get_comments_for_package(category_name: str, package_name: str, user_uuid: str) -> dict:
-        
+        """
+        Retrieves comments for a specific package, indicating whether each comment was made by the requesting user.
+
+        Returns a dict with key `comments`, which is a list of comment dicts. Each comment dict includes:
+        - `comment_text`: The text of the comment.
+        - `timestamp`: The timestamp (ISO 8601 format string) of when the comment was made.
+        - `is_user_comment`: A boolean indicating whether the comment was made by the requesting user.
+        """
+
         # returns a dict without exposing the user_uuid
         # replace the user_uuid with a boolean indicating if the comment was made by the requesting user
         raw_comments = SocialManager._get_raw_comments_for_package(category_name, package_name)
@@ -116,6 +168,14 @@ class SocialManager:
 
     @staticmethod
     def remove_comment_from_package(category_name: str, package_name: str, user_uuid: str, message_uuid: str) -> bool:
+        """
+        Removes a comment from a package if it matches the provided message UUID and user UUID.
+
+        Raises a ValueError if the category or package name is not safe.
+
+        Returns `True` if the comment was successfully removed, or `False` if no matching comment was found.
+        """
+        
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
@@ -145,6 +205,18 @@ class SocialManager:
 
     @staticmethod
     def _get_raw_comments_for_package(category_name: str, package_name: str) -> dict:
+        """
+        Retrieves the raw list of comments for a package, including user UUIDs.
+
+        Returns a dict with key `comments` containing the list of comment dicts.
+        Each comment dict includes:
+        - `user_uuid`: The UUID of the user who made the comment.
+        - `comment_text`: The text of the comment.
+        - `timestamp`: The timestamp (ISO 8601 format string) of when the comment was made.
+        
+        **NOTE**: This method exposes user UUIDs and should be used with caution.
+        It is intended for internal use, not for direct client responses.
+        """
         social_json_path = CATEGORIES_PATH / category_name / package_name / SocialManager.PACKAGE_SOCIALS_FILENAME
 
         if not SafetyUtils.does_category_and_package_exist(category_name, package_name):
@@ -157,6 +229,14 @@ class SocialManager:
 
     @staticmethod
     def add_comment_to_package(category_name: str, package_name: str, user_uuid: str, comment_text: str) -> None:
+        """
+        Adds a comment to the specified package from the user with the provided text.
+        If the package's social JSON file does not exist, it will be created.
+
+        Raises a ValueError if the category or package name is not safe.
+
+        The comment entry will include a generated message UUID, the user's UUID, the comment text, and a timestamp (ISO 8601 format string).
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
@@ -180,6 +260,11 @@ class SocialManager:
 
     @staticmethod
     def create_comment_entry(user_uuid: str, comment_text: str) -> str:
+        """
+        Creates a comment entry dict with a generated message UUID, the user's UUID, the comment text, and a timestamp (ISO 8601 format string).
+        
+        Returns the comment entry as a JSON string.
+        """
         
         # Getting the current date and time
         dt = datetime.datetime.now(timezone.utc)
@@ -195,6 +280,14 @@ class SocialManager:
     
     @staticmethod
     def does_package_have_social_json(category_name: str, package_name: str) -> bool:
+        """
+        Checks if the `package_socials.json` file exists for the specified package.
+        Also checks that the category and package names are safe.
+
+        Raises a ValueError if the category or package name is not safe.
+        
+        Returns `True` if the social JSON file exists, otherwise returns `False`.
+        """
         if not SafetyUtils.check_many_names_safety(category_name, package_name):
             raise ValueError("Invalid category or package name.")
         
