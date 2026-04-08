@@ -1,13 +1,3 @@
-"""
-Class that provides static methods for asset operations.
-This includes mainly helper methods for:
-- Getting the file path to the version of a package (asset index)
-- Getting the path to various contents of a package version
-- Creating and getting the preview image for a package version
-- Saving and getting the asset info JSON for a package version
-- Checking if a specific new package version can be created
-"""
-
 from fastapi import HTTPException
 from asset_info import DEFAULT_VERSION, Asset_Info
 from category_manager import CategoryManager
@@ -29,6 +19,15 @@ LICENSE_FILENAME = "license.md"
 PREVIEW_IMAGE_FILENAME = "preview.png"
 
 class AssetManager:
+    """
+    Class that provides static methods for asset operations.
+    This includes mainly helper methods for:
+    - Getting the file path to the version of a package (asset index)
+    - Getting the path to various contents of a package version
+    - Creating and getting the preview image for a package version
+    - Saving and getting the asset info JSON for a package version
+    - Checking if a specific new package version can be created
+    """
     
     @staticmethod
     def get_asset_index_path(category_name: str, package_name: str, version: str = "") -> str:

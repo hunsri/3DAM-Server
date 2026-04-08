@@ -1,11 +1,3 @@
-"""
-Class for providing safety checks for file paths and names to prevent security vulnerabilities
-such as path traversal and injection attacks.
-
-Notes:
-- Uses `Path.is_relative_to()`, which requires Python 3.9+.
-"""
-
 from config import CATEGORIES_PATH
 from pathlib import Path
 from typing import Optional
@@ -13,6 +5,13 @@ import os
 import re
 
 class SafetyUtils:
+    """
+    Class for providing safety checks for file paths and names to prevent security vulnerabilities
+    such as path traversal and injection attacks.
+
+    Notes:
+    - Uses `Path.is_relative_to()`, which requires Python 3.9+.
+    """
 
     @staticmethod
     def check_many_names_safety(*names: str) -> bool:

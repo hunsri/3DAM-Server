@@ -1,6 +1,3 @@
-"""
-Class for providing utility functions for managing the asset packages.
-"""
 import json
 import uuid
 from category_manager import CategoryManager
@@ -12,7 +9,10 @@ ASSET_PACKAGE_INFO_FILENAME = "asset_package_info.json"
 ASSET_ZIP_NAME = "assets.zip"
 
 class PackageManager:
-
+    """
+    Class for providing utility functions for managing the asset packages.
+    """
+    
     @staticmethod
     def list_packages_in_category(category_name: str) -> list[str]:
         """

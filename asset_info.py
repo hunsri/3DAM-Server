@@ -1,8 +1,3 @@
-"""
-Class for representing the Asset_Info of a package version.
-Mainly provides the Asset_Info Pydantic model.
-"""
-
 from typing_extensions import Annotated
 from fastapi.params import Form
 from pydantic import BaseModel
@@ -14,6 +9,10 @@ from package_manager import PackageManager
 DEFAULT_VERSION = "0.0.0" # default version if not provided
 
 class Asset_Info(BaseModel):
+    """
+    Class for representing the Asset_Info of a package version.
+    Mainly provides the Asset_Info Pydantic model.
+    """
     package_name: str
     version: str = DEFAULT_VERSION
     asset_file_name: str

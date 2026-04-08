@@ -1,11 +1,10 @@
-"""
-Class for providing utility functions for managing the asset categories.
-"""
-
 from config import CATEGORIES_PATH
 from safety_utils import SafetyUtils
 
 class CategoryManager:
+    """
+    Class for providing utility functions for managing the asset categories.
+    """
 
     @staticmethod
     def does_category_exist(category_name: str) -> bool:
