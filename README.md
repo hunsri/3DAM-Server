@@ -2,6 +2,9 @@
 
 This repository contains a simple model server designed to serve models to a [Godot Client](https://github.com/hunsri/3DAM).
 
+## Overview
+<img width="1666" height="666" alt="3dam-server" src="https://github.com/user-attachments/assets/ac3d6e6c-fb7d-4b93-8636-71aa2682703a" />
+
 ## Getting Started
 
 ### Requirements
