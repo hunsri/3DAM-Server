@@ -1,6 +1,6 @@
 # 3DAM-Server
 
-This repository contains a simple model server designed to serve models to a [Godot Client](https://github.com/hunsri/3DAM).
+A simple **3D**-**A**sset-**M**anagement-**Server** designed to serve assets to a [Godot Client](https://github.com/hunsri/3DAM) or any custom frontend.
 
 ## Overview
 <img width="1666" height="666" alt="3dam-server" src="https://github.com/user-attachments/assets/ac3d6e6c-fb7d-4b93-8636-71aa2682703a" />
@@ -11,7 +11,7 @@ This repository contains a simple model server designed to serve models to a [Go
 - Python 3.8+
 
 ### Installation
-Download and run the following commands.<br>
+Download the project by cloning it (or as a .zip), then run the following commands.<br>
 This creates a virtual environment to keep things clean and downloads everything needed.<br> *Simple as that!* <br>
 
 <b>On Windows:</b>
